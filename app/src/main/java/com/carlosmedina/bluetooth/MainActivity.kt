@@ -1,8 +1,10 @@
 package com.carlosmedina.bluetooth
 
+import BLEconnDialog
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.os.Build
@@ -16,10 +18,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.File
 
 
-
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), BLEconnDialog.BLEConnectionCallback {
     val dataset = mutableListOf<BluetoothDevice>()
     lateinit var customAdapter: CustomAdapter
 
@@ -34,6 +36,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         customAdapter = CustomAdapter(dataset)
+        customAdapter.onItemClick = { device -> showBLEDialog(device)}
+
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
         val lm: RecyclerView.LayoutManager = LinearLayoutManager(this)
         recyclerView.setLayoutManager(lm)
@@ -54,7 +58,6 @@ class MainActivity : AppCompatActivity() {
 
 
         for( elem in bluetoothAdapter.bondedDevices.filter { device ->
-            // Filtrar per dispositius BLE
             device.type == BluetoothDevice.DEVICE_TYPE_LE ||
                     device.type == BluetoothDevice.DEVICE_TYPE_DUAL ||
                     device.type == BluetoothDevice.DEVICE_TYPE_UNKNOWN ||
@@ -116,5 +119,54 @@ class MainActivity : AppCompatActivity() {
                     Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    lateinit var bleDialog : BLEconnDialog
+    // DIALOG : cridar aquesta funció per mostrar-lo
+    ////////////////////////////////////////////////
+    private fun showBLEDialog(device: BluetoothDevice) {
+        bleDialog = BLEconnDialog(this, device, this)
+        bleDialog.apply {
+            setCancelable(false)
+            setOnCancelListener {
+                onConnectionCancelled()
+            }
+            show()
+        }
+    }
+
+    // DIALOG CALLBACKS
+    ///////////////////////////////
+    override fun onConnectionSuccess(gatt: BluetoothGatt) {
+        runOnUiThread {
+            Toast.makeText(this, "Connectat amb èxit!", Toast.LENGTH_SHORT).show()
+            // Aquí pots fer operacions amb el gatt connectat
+            // Per exemple: llegir/escribre característiques
+        }
+    }
+
+    override fun onConnectionFailed(error: String) {
+        runOnUiThread {
+            Toast.makeText(this, "Error de connexió: $error", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onConnectionCancelled() {
+        runOnUiThread {
+            Toast.makeText(this, "Connexió cancel·lada", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onReceivedImage(file: File) {
+        runOnUiThread {
+            val filename = file.name
+            Toast.makeText(this, "Imatge rebuda: $filename", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Aquesta callback és de l'Activity
+    override fun onDestroy() {
+        super.onDestroy()
+        bleDialog.dismiss()
     }
 }
